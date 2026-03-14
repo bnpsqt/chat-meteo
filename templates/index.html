@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Météo</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; background: #f0f4ff; }
+        h1 { color: #333; text-align: center; margin-bottom: 30px; }
+        .search { display: flex; gap: 10px; }
+        input { flex: 1; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; }
+        button { padding: 12px 24px; font-size: 16px; background: #4A90E2; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        button:hover { background: #357ABD; }
+
+        #carte { margin-top: 24px; background: white; border-radius: 16px; padding: 30px; text-align: center; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        #icone { font-size: 80px; }
+        #ville-nom { font-size: 24px; font-weight: bold; color: #333; margin: 10px 0 6px; }
+        #reponse { font-size: 16px; color: #555; }
+        #activite { margin-top: 12px; font-size: 15px; background: #fff8e1; border-radius: 8px; padding: 10px 16px; color: #e67e22; display: inline-block; }
+
+        #previsions { margin-top: 20px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+        .jour { background: #f8f9ff; border-radius: 10px; padding: 10px 6px; text-align: center; font-size: 13px; }
+        .jour .date { color: #888; margin-bottom: 4px; }
+        .jour .icone-jour { font-size: 24px; }
+        .jour .temp-max { color: #e74c3c; font-weight: bold; }
+        .jour .temp-min { color: #3498db; }
+
+        #historique { margin-top: 24px; background: white; border-radius: 16px; padding: 20px; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        #historique h2 { font-size: 16px; color: #333; margin-bottom: 12px; }
+        .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+        .hist-item:hover { color: #4A90E2; }
+        .hist-item:last-child { border-bottom: none; }
+
+        #loading { text-align: center; margin-top: 30px; color: #888; display: none; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h1>🌤️ Chat Météo</h1>
+
+    <div class="search">
+        <input type="text" id="ville" placeholder="Entre une ville..." />
+        <button onclick="getMeteo()">Demander</button>
+    </div>
+
+    <div id="loading">⏳ Chargement...</div>
+
+    <div id="carte">
+        <div id="icone"></div>
+        <div id="ville-nom"></div>
+        <div id="reponse"></div>
+        <div id="activite"></div>
+        <div id="previsions"></div>
+    </div>
+
+    <div id="historique">
+        <h2>🕘 Historique</h2>
+        <div id="hist-liste"></div>
+    </div>
+
+    <script>
+        const historique = [];
+
+        const icones = {
+            0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️",
+            45: "🌫️", 48: "🌫️",
+            51: "🌦️", 53: "🌦️", 55: "🌧️",
+            61: "🌧️", 63: "🌧️", 65: "🌧️",
+            71: "❄️", 73: "❄️", 75: "❄️",
+            80: "🌦️", 81: "🌧️", 82: "🌧️",
+            95: "⛈️", 96: "⛈️", 99: "⛈️"
+        };
+
+        function iconeParCode(code) {
+            return icones[code] || "🌡️";
+        }
+
+        function formatDate(dateStr) {
+            const d = new Date(dateStr);
+            return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+        }
+
+        async function getMeteo(villeParam) {
+            const ville = villeParam || document.getElementById("ville").value.trim();
+            if (!ville) return;
+
+            document.getElementById("loading").style.display = "block";
+            document.getElementById("carte").style.display = "none";
+
+            const response = await fetch("/meteo", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ville: ville })
+            });
+
+            const data = await response.json();
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("carte").style.display = "block";
+            document.getElementById("icone").innerText = data.icone;
+            document.getElementById("ville-nom").innerText = ville;
+            document.getElementById("reponse").innerText = data.reponse;
+            document.getElementById("activite").innerText = "👨‍👩‍👧 " + data.activite;
+
+            // Prévisions 7 jours
+            const prevDiv = document.getElementById("previsions");
+            prevDiv.innerHTML = "";
+            data.previsions.forEach(j => {
+                prevDiv.innerHTML += `
+                    <div class="jour">
+                        <div class="date">${formatDate(j.date)}</div>
+                        <div class="icone-jour">${iconeParCode(j.code)}</div>
+                        <div class="temp-max">${j.max}°</div>
+                        <div class="temp-min">${j.min}°</div>
+                    </div>`;
+            });
+
+            // Historique
+            if (!historique.includes(ville)) {
+                historique.unshift(ville);
+                if (historique.length > 5) historique.pop();
+                majHistorique();
+            }
+        }
+
+        function majHistorique() {
+            const liste = document.getElementById("hist-liste");
+            if (historique.length === 0) return;
+            document.getElementById("historique").style.display = "block";
+            liste.innerHTML = historique.map(v => `
+                <div class="hist-item" onclick="getMeteo('${v}')">
+                    <span>${v}</span><span>→</span>
+                </div>`).join("");
+        }
+
+        document.getElementById("ville").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") getMeteo();
+        });
+    </script>
+</body>
+</html>
