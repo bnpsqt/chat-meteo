@@ -1,11 +1,13 @@
 from flask import Flask, request, jsonify, render_template
 import urllib.request
+import urllib.parse
 import json
 import anthropic
 import os
 
 app = Flask(__name__)
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+TICKETMASTER_KEY = os.environ.get("TICKETMASTER_API_KEY")
 
 @app.route("/")
 def home():
@@ -55,6 +57,25 @@ Choisis l'icône parmi : ☀️ (beau temps), ⛅ (nuageux), 🌧️ (pluie), �
     texte = texte.replace("```json", "").replace("```", "").strip()
     resultat = json.loads(texte)
     resultat["previsions"] = previsions
+
+    # Appel API Ticketmaster pour les événements
+    ville_encodee = urllib.parse.quote(ville)
+    tm_url = f"https://app.ticketmaster.com/discovery/v2/events.json?city={ville_encodee}&size=3&apikey={TICKETMASTER_KEY}"
+    try:
+        with urllib.request.urlopen(tm_url) as response:
+            tm_data = json.loads(response.read())
+        evenements = []
+        if "_embedded" in tm_data:
+            for event in tm_data["_embedded"]["events"]:
+                evenements.append({
+                    "nom": event["name"],
+                    "date": event["dates"]["start"].get("localDate", "Date inconnue"),
+                    "lieu": event["_embedded"]["venues"][0]["name"] if "_embedded" in event else "Lieu inconnu"
+                })
+        resultat["evenements"] = evenements
+    except:
+        resultat["evenements"] = []
+
     return jsonify(resultat)
 
 if __name__ == "__main__":

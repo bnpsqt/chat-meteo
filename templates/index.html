@@ -11,47 +11,45 @@
         input { flex: 1; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; }
         button { padding: 12px 24px; font-size: 16px; background: #4A90E2; color: white; border: none; border-radius: 8px; cursor: pointer; }
         button:hover { background: #357ABD; }
-
         #carte { margin-top: 24px; background: white; border-radius: 16px; padding: 30px; text-align: center; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         #icone { font-size: 80px; }
         #ville-nom { font-size: 24px; font-weight: bold; color: #333; margin: 10px 0 6px; }
         #reponse { font-size: 16px; color: #555; }
         #activite { margin-top: 12px; font-size: 15px; background: #fff8e1; border-radius: 8px; padding: 10px 16px; color: #e67e22; display: inline-block; }
-
         #previsions { margin-top: 20px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
         .jour { background: #f8f9ff; border-radius: 10px; padding: 10px 6px; text-align: center; font-size: 13px; }
         .jour .date { color: #888; margin-bottom: 4px; }
         .jour .icone-jour { font-size: 24px; }
         .jour .temp-max { color: #e74c3c; font-weight: bold; }
         .jour .temp-min { color: #3498db; }
-
+        #evenements { margin-top: 20px; text-align: left; }
+        #evenements h3 { font-size: 16px; color: #333; margin-bottom: 10px; }
+        .event { background: #f0fff4; border-radius: 10px; padding: 12px; margin-bottom: 8px; border-left: 4px solid #2ecc71; }
+        .event-nom { font-weight: bold; color: #333; }
+        .event-detail { font-size: 13px; color: #777; margin-top: 4px; }
         #historique { margin-top: 24px; background: white; border-radius: 16px; padding: 20px; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         #historique h2 { font-size: 16px; color: #333; margin-bottom: 12px; }
         .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
         .hist-item:hover { color: #4A90E2; }
         .hist-item:last-child { border-bottom: none; }
-
         #loading { text-align: center; margin-top: 30px; color: #888; display: none; font-size: 18px; }
     </style>
 </head>
 <body>
     <h1>🌤️ Chat Météo</h1>
-
     <div class="search">
         <input type="text" id="ville" placeholder="Entre une ville..." />
         <button onclick="getMeteo()">Demander</button>
     </div>
-
     <div id="loading">⏳ Chargement...</div>
-
     <div id="carte">
         <div id="icone"></div>
         <div id="ville-nom"></div>
         <div id="reponse"></div>
         <div id="activite"></div>
         <div id="previsions"></div>
+        <div id="evenements"></div>
     </div>
-
     <div id="historique">
         <h2>🕘 Historique</h2>
         <div id="hist-liste"></div>
@@ -59,7 +57,6 @@
 
     <script>
         const historique = [];
-
         const icones = {
             0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️",
             45: "🌫️", 48: "🌫️",
@@ -70,9 +67,7 @@
             95: "⛈️", 96: "⛈️", 99: "⛈️"
         };
 
-        function iconeParCode(code) {
-            return icones[code] || "🌡️";
-        }
+        function iconeParCode(code) { return icones[code] || "🌡️"; }
 
         function formatDate(dateStr) {
             const d = new Date(dateStr);
@@ -82,7 +77,6 @@
         async function getMeteo(villeParam) {
             const ville = villeParam || document.getElementById("ville").value.trim();
             if (!ville) return;
-
             document.getElementById("loading").style.display = "block";
             document.getElementById("carte").style.display = "none";
 
@@ -112,6 +106,21 @@
                         <div class="temp-min">${j.min}°</div>
                     </div>`;
             });
+
+            // Événements
+            const evDiv = document.getElementById("evenements");
+            if (data.evenements && data.evenements.length > 0) {
+                evDiv.innerHTML = "<h3>🎭 Événements à venir</h3>";
+                data.evenements.forEach(e => {
+                    evDiv.innerHTML += `
+                        <div class="event">
+                            <div class="event-nom">${e.nom}</div>
+                            <div class="event-detail">📅 ${e.date} — 📍 ${e.lieu}</div>
+                        </div>`;
+                });
+            } else {
+                evDiv.innerHTML = "<h3>🎭 Aucun événement trouvé</h3>";
+            }
 
             // Historique
             if (!historique.includes(ville)) {
