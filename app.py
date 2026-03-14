@@ -3,12 +3,9 @@ import urllib.request
 import json
 import anthropic
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 app = Flask(__name__)
-client = anthropic.Anthropic(api_key="ANTHROPIC_API_KEY")
+client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 @app.route("/")
 def home():
