@@ -2,57 +2,234 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Chat Météo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Météo & Événements</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; background: #f0f4ff; }
-        h1 { color: #333; text-align: center; margin-bottom: 30px; }
-        .search { display: flex; gap: 10px; }
-        input { flex: 1; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; }
-        button { padding: 12px 24px; font-size: 16px; background: #4A90E2; color: white; border: none; border-radius: 8px; cursor: pointer; }
-        button:hover { background: #357ABD; }
-        #carte { margin-top: 24px; background: white; border-radius: 16px; padding: 30px; text-align: center; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #icone { font-size: 80px; }
-        #ville-nom { font-size: 24px; font-weight: bold; color: #333; margin: 10px 0 6px; }
-        #reponse { font-size: 16px; color: #555; }
-        #activite { margin-top: 12px; font-size: 15px; background: #fff8e1; border-radius: 8px; padding: 10px 16px; color: #e67e22; display: inline-block; }
-        #previsions { margin-top: 20px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
-        .jour { background: #f8f9ff; border-radius: 10px; padding: 10px 6px; text-align: center; font-size: 13px; }
-        .jour .date { color: #888; margin-bottom: 4px; }
-        .jour .icone-jour { font-size: 24px; }
-        .jour .temp-max { color: #e74c3c; font-weight: bold; }
-        .jour .temp-min { color: #3498db; }
-        #evenements { margin-top: 20px; text-align: left; }
-        #evenements h3 { font-size: 16px; color: #333; margin-bottom: 10px; }
-        .event { background: #f0fff4; border-radius: 10px; padding: 12px; margin-bottom: 8px; border-left: 4px solid #2ecc71; }
-        .event-nom { font-weight: bold; color: #333; }
-        .event-detail { font-size: 13px; color: #777; margin-top: 4px; }
-        #historique { margin-top: 24px; background: white; border-radius: 16px; padding: 20px; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #historique h2 { font-size: 16px; color: #333; margin-bottom: 12px; }
-        .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
-        .hist-item:hover { color: #4A90E2; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            padding: 24px 16px;
+        }
+
+        .container { max-width: 680px; margin: 0 auto; }
+
+        /* Header */
+        header { text-align: center; margin-bottom: 36px; }
+        header h1 { font-size: clamp(28px, 6vw, 42px); font-weight: 700; letter-spacing: -1px; }
+        header h1 span { background: linear-gradient(90deg, #74ebd5, #ACB6E5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        header p { color: rgba(255,255,255,0.5); margin-top: 8px; font-size: 15px; }
+
+        /* Search */
+        .search-box {
+            display: flex;
+            gap: 10px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 16px;
+            padding: 8px;
+            backdrop-filter: blur(10px);
+        }
+        .search-box input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: white;
+            font-size: 16px;
+            padding: 8px 12px;
+            font-family: 'Inter', sans-serif;
+        }
+        .search-box input::placeholder { color: rgba(255,255,255,0.35); }
+        .search-box button {
+            background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a1a2e;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+        .search-box button:hover { opacity: 0.85; }
+
+        /* Loading */
+        #loading {
+            display: none;
+            text-align: center;
+            padding: 48px 0;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #74ebd5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Carte météo principale */
+        #carte { display: none; margin-top: 24px; }
+
+        .card {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 16px;
+        }
+
+        .meteo-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .meteo-left .icone { font-size: clamp(64px, 15vw, 88px); line-height: 1; }
+        .meteo-left .ville { font-size: clamp(22px, 5vw, 28px); font-weight: 700; margin-top: 8px; }
+        .meteo-right { text-align: right; }
+        .meteo-right .reponse { color: rgba(255,255,255,0.75); font-size: 15px; max-width: 280px; line-height: 1.5; }
+        .activite-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,200,60,0.15);
+            border: 1px solid rgba(255,200,60,0.3);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 14px;
+            color: #ffd97d;
+            margin-top: 16px;
+            width: 100%;
+        }
+
+        /* Prévisions */
+        .previsions-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.4); margin-bottom: 14px; }
+        .previsions-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+        @media (max-width: 480px) {
+            .previsions-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+        .jour {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 10px 4px;
+            text-align: center;
+            transition: background 0.2s;
+        }
+        .jour:hover { background: rgba(255,255,255,0.1); }
+        .jour .date { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 6px; }
+        .jour .icone-jour { font-size: 22px; }
+        .jour .temp-max { font-size: 13px; font-weight: 600; color: #ff8c69; margin-top: 4px; }
+        .jour .temp-min { font-size: 12px; color: #74ebd5; }
+
+        /* Événements */
+        .events-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.4); margin-bottom: 14px; }
+        .event {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+        .event:last-child { border-bottom: none; padding-bottom: 0; }
+        .event-icon {
+            width: 42px; height: 42px;
+            background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        .event-info { flex: 1; min-width: 0; }
+        .event-nom { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .event-detail { font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 3px; }
+        .no-events { color: rgba(255,255,255,0.4); font-size: 14px; text-align: center; padding: 16px 0; }
+
+        /* Historique */
+        #historique { display: none; margin-top: 16px; }
+        .hist-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.4); margin-bottom: 14px; }
+        .hist-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            cursor: pointer;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
         .hist-item:last-child { border-bottom: none; }
-        #loading { text-align: center; margin-top: 30px; color: #888; display: none; font-size: 18px; }
+        .hist-item:hover { color: #74ebd5; }
+        .hist-arrow { color: rgba(255,255,255,0.3); }
     </style>
 </head>
 <body>
-    <h1>🌤️ Chat Météo</h1>
-    <div class="search">
-        <input type="text" id="ville" placeholder="Entre une ville..." />
-        <button onclick="getMeteo()">Demander</button>
-    </div>
-    <div id="loading">⏳ Chargement...</div>
-    <div id="carte">
-        <div id="icone"></div>
-        <div id="ville-nom"></div>
-        <div id="reponse"></div>
-        <div id="activite"></div>
-        <div id="previsions"></div>
-        <div id="evenements"></div>
-    </div>
-    <div id="historique">
-        <h2>🕘 Historique</h2>
-        <div id="hist-liste"></div>
+    <div class="container">
+        <header>
+            <h1>🌤️ <span>Météo & Sorties</span></h1>
+            <p>Découvrez la météo et les événements de votre ville</p>
+        </header>
+
+        <div class="search-box">
+            <input type="text" id="ville" placeholder="Paris, Tokyo, New York..." />
+            <button onclick="getMeteo()">Rechercher</button>
+        </div>
+
+        <div id="loading">
+            <div class="spinner"></div>
+            <p style="color: rgba(255,255,255,0.4); font-size: 14px;">Chargement en cours...</p>
+        </div>
+
+        <div id="carte">
+            <!-- Météo principale -->
+            <div class="card">
+                <div class="meteo-main">
+                    <div class="meteo-left">
+                        <div class="icone" id="icone"></div>
+                        <div class="ville" id="ville-nom"></div>
+                    </div>
+                    <div class="meteo-right">
+                        <div class="reponse" id="reponse"></div>
+                    </div>
+                </div>
+                <div class="activite-badge">
+                    <span>👨‍👩‍👧</span>
+                    <span id="activite"></span>
+                </div>
+            </div>
+
+            <!-- Prévisions -->
+            <div class="card">
+                <div class="previsions-title">📅 Prévisions 7 jours</div>
+                <div class="previsions-grid" id="previsions"></div>
+            </div>
+
+            <!-- Événements -->
+            <div class="card">
+                <div class="events-title">🎭 Événements à venir</div>
+                <div id="evenements"></div>
+            </div>
+        </div>
+
+        <div id="historique" class="card">
+            <div class="hist-title">🕘 Recherches récentes</div>
+            <div id="hist-liste"></div>
+        </div>
     </div>
 
     <script>
@@ -71,19 +248,20 @@
 
         function formatDate(dateStr) {
             const d = new Date(dateStr);
-            return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+            return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
         }
 
         async function getMeteo(villeParam) {
             const ville = villeParam || document.getElementById("ville").value.trim();
             if (!ville) return;
+
             document.getElementById("loading").style.display = "block";
             document.getElementById("carte").style.display = "none";
 
             const response = await fetch("/meteo", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ville: ville })
+                body: JSON.stringify({ ville })
             });
 
             const data = await response.json();
@@ -92,9 +270,9 @@
             document.getElementById("icone").innerText = data.icone;
             document.getElementById("ville-nom").innerText = ville;
             document.getElementById("reponse").innerText = data.reponse;
-            document.getElementById("activite").innerText = "👨‍👩‍👧 " + data.activite;
+            document.getElementById("activite").innerText = data.activite;
 
-            // Prévisions 7 jours
+            // Prévisions
             const prevDiv = document.getElementById("previsions");
             prevDiv.innerHTML = "";
             data.previsions.forEach(j => {
@@ -110,16 +288,16 @@
             // Événements
             const evDiv = document.getElementById("evenements");
             if (data.evenements && data.evenements.length > 0) {
-                evDiv.innerHTML = "<h3>🎭 Événements à venir</h3>";
-                data.evenements.forEach(e => {
-                    evDiv.innerHTML += `
-                        <div class="event">
+                evDiv.innerHTML = data.evenements.map(e => `
+                    <div class="event">
+                        <div class="event-icon">🎫</div>
+                        <div class="event-info">
                             <div class="event-nom">${e.nom}</div>
-                            <div class="event-detail">📅 ${e.date} — 📍 ${e.lieu}</div>
-                        </div>`;
-                });
+                            <div class="event-detail">📅 ${e.date} · 📍 ${e.lieu}</div>
+                        </div>
+                    </div>`).join("");
             } else {
-                evDiv.innerHTML = "<h3>🎭 Aucun événement trouvé</h3>";
+                evDiv.innerHTML = `<div class="no-events">Aucun événement trouvé pour cette ville</div>`;
             }
 
             // Historique
@@ -136,11 +314,12 @@
             document.getElementById("historique").style.display = "block";
             liste.innerHTML = historique.map(v => `
                 <div class="hist-item" onclick="getMeteo('${v}')">
-                    <span>${v}</span><span>→</span>
+                    <span>${v}</span>
+                    <span class="hist-arrow">→</span>
                 </div>`).join("");
         }
 
-        document.getElementById("ville").addEventListener("keypress", function(e) {
+        document.getElementById("ville").addEventListener("keypress", e => {
             if (e.key === "Enter") getMeteo();
         });
     </script>
