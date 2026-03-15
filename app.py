@@ -4,11 +4,11 @@ import urllib.parse
 import json
 import anthropic
 import os
+from datetime import datetime, timezone
 
 app = Flask(__name__)
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 TICKETMASTER_KEY = os.environ.get("TICKETMASTER_API_KEY")
-OPENAGENDA_KEY = os.environ.get("OPENAGENDA_API_KEY")
 
 @app.route("/")
 def home():
@@ -71,63 +71,59 @@ Choisis l'icône parmi : ☀️ (beau temps), ⛅ (nuageux), 🌧️ (pluie), �
     resultat = json.loads(texte)
     resultat["previsions"] = previsions
 
-    # Ticketmaster
-    ville_encodee = urllib.parse.quote(ville)
-    tm_url = f"https://app.ticketmaster.com/discovery/v2/events.json?city={ville_encodee}&size=3&apikey={TICKETMASTER_KEY}"
+    # Événements selon la ville
+    evenements = []
+    ville_lower = ville.lower().strip()
+
+    if "paris" in ville_lower:
+        # API Que Faire à Paris
+        try:
+            aujourd_hui = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            oa_url = f"https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records?where=date_start%3E%3D%22{aujourd_hui}%22&order_by=date_start%20ASC&limit=10"
+            with urllib.request.urlopen(oa_url) as response:
+                oa_data = json.loads(response.read())
+            for event in oa_data.get("results", []):
+                nom = event.get("title", "Événement")
+                lieu = event.get("address_name") or event.get("address_street") or "Paris"
+                date = (event.get("date_start") or "")[:10]
+                if nom and date:
+                    evenements.append({"nom": nom, "date": date, "lieu": lieu})
+        except Exception as e:
+            print(f"Paris API error: {e}")
+
+    # Ticketmaster en complément
     try:
+        ville_encodee = urllib.parse.quote(ville)
+        tm_url = f"https://app.ticketmaster.com/discovery/v2/events.json?city={ville_encodee}&size=5&apikey={TICKETMASTER_KEY}"
         with urllib.request.urlopen(tm_url) as response:
             tm_data = json.loads(response.read())
-        evenements = []
         if "_embedded" in tm_data:
             for event in tm_data["_embedded"]["events"]:
                 evenements.append({
                     "nom": event["name"],
-                    "date": event["dates"]["start"].get("localDate", "Date inconnue"),
-                    "lieu": event["_embedded"]["venues"][0]["name"] if "_embedded" in event else "Lieu inconnu",
-                    "source": "ticketmaster"
+                    "date": event["dates"]["start"].get("localDate", ""),
+                    "lieu": event["_embedded"]["venues"][0]["name"] if "_embedded" in event else "Lieu inconnu"
                 })
-        resultat["evenements"] = evenements
-    except:
-        resultat["evenements"] = []
-
-    # OpenAgenda
-    try:
-        from datetime import datetime, timezone
-        maintenant = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-        oa_url = f"https://api.openagenda.com/v2/events?key={OPENAGENDA_KEY}&search={ville_encodee}&size=5&timings[gte]={maintenant}&sort=timings.asc"
-        with urllib.request.urlopen(oa_url) as response:
-            oa_data = json.loads(response.read())
-        for event in oa_data.get("events", []):
-            titre = event.get("title", {})
-            nom = titre.get("fr") or titre.get("en") or "Événement"
-            lieu_info = event.get("location", {})
-            lieu = lieu_info.get("name", "Lieu inconnu")
-            timings = event.get("timings", [])
-            date = timings[0].get("begin", "")[:10] if timings else "Date inconnue"
-            resultat["evenements"].append({
-                "nom": nom,
-                "date": date,
-                "lieu": lieu,
-                "source": "openagenda"
-            })
     except Exception as e:
-        print(f"OpenAgenda error: {e}")
+        print(f"Ticketmaster error: {e}")
 
-    # Claude trie et sélectionne les 5 meilleurs événements
-    if resultat["evenements"]:
+    # Claude sélectionne et trie les meilleurs événements
+    if evenements:
         try:
             message3 = client.messages.create(
                 model="claude-opus-4-5",
                 max_tokens=500,
-                messages=[{"role": "user", "content": f"""Voici une liste d'événements à {ville} : {json.dumps(resultat['evenements'], ensure_ascii=False)}
-Sélectionne les 5 plus intéressants et pertinents pour un chauffeur VTC (grands événements, concerts, matchs, festivals).
-Réponds uniquement en JSON avec ce format : [{{"nom": "...", "date": "...", "lieu": "..."}}]"""}]
+                messages=[{"role": "user", "content": f"""Voici une liste d'événements à {ville} : {json.dumps(evenements[:15], ensure_ascii=False)}
+Sélectionne les 5 plus importants et pertinents pour un chauffeur VTC (grands concerts, matchs, festivals, spectacles majeurs).
+Réponds uniquement en JSON : [{{"nom": "...", "date": "...", "lieu": "..."}}]"""}]
             )
             texte3 = message3.content[0].text.strip()
             texte3 = texte3.replace("```json", "").replace("```", "").strip()
             resultat["evenements"] = json.loads(texte3)
         except:
-            pass
+            resultat["evenements"] = evenements[:5]
+    else:
+        resultat["evenements"] = []
 
     return jsonify(resultat)
 
