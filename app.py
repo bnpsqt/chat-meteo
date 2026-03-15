@@ -13,6 +13,19 @@ TICKETMASTER_KEY = os.environ.get("TICKETMASTER_API_KEY")
 def home():
     return render_template("index.html")
 
+@app.route("/ville-depuis-coords", methods=["POST"])
+def ville_depuis_coords():
+    lat = request.json["lat"]
+    lon = request.json["lon"]
+
+    message = client.messages.create(
+        model="claude-opus-4-5",
+        max_tokens=50,
+        messages=[{"role": "user", "content": f"Quelle est la ville la plus proche des coordonnées GPS latitude={lat}, longitude={lon} ? Réponds uniquement avec le nom de la ville, rien d'autre."}]
+    )
+    ville = message.content[0].text.strip()
+    return jsonify({"ville": ville})
+
 @app.route("/meteo", methods=["POST"])
 def meteo():
     ville = request.json["ville"]
@@ -43,13 +56,14 @@ def meteo():
             "code": daily["weathercode"][i]
         })
 
-    # Claude choisit l'icône, formule la réponse et suggère une activité
+    # Claude choisit l'icône, formule la réponse et donne un conseil chauffeur
     message2 = client.messages.create(
         model="claude-opus-4-5",
         max_tokens=300,
         messages=[{"role": "user", "content": f"""Météo à {ville} : {meteo_now['temperature']}°C, vent {meteo_now['windspeed']} km/h, code météo {meteo_now['weathercode']}.
+Tu parles à un chauffeur VTC.
 Réponds uniquement en JSON avec ce format exactement :
-{{"icone": "☀️", "reponse": "Une phrase sympa en français", "activite": "Une suggestion d'activité en famille adaptée à cette météo, en une phrase"}}
+{{"icone": "☀️", "reponse": "Une phrase sur la météo en français", "activite": "Un conseil utile pour le chauffeur VTC en lien avec la météo"}}
 Choisis l'icône parmi : ☀️ (beau temps), ⛅ (nuageux), 🌧️ (pluie), ⛈️ (orage), ❄️ (neige), 🌫️ (brouillard)"""}]
     )
 
