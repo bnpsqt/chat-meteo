@@ -124,7 +124,7 @@ Réponds uniquement en JSON : [{{"nom": "...", "date": "...", "lieu": "..."}}]""
     else:
         resultat["evenements"] = []
 
-      # Prix carburant
+    # Prix carburant
     try:
         ville_capitalisee = ville.strip().title()
         params = urllib.parse.urlencode({
@@ -152,6 +152,30 @@ Réponds uniquement en JSON : [{{"nom": "...", "date": "...", "lieu": "..."}}]""
     except Exception as e:
         print(f"Carburant error: {e}")
         resultat["carburants"] = []
+
+    # Zones chaudes — Claude analyse tout et prédit
+    try:
+        heure_actuelle = datetime.now().strftime("%Hh%M")
+        jour_semaine = datetime.now().strftime("%A")
+        message4 = client.messages.create(
+            model="claude-opus-4-5",
+            max_tokens=600,
+            messages=[{"role": "user", "content": f"""Tu es un expert en mobilité urbaine VTC à {ville}.
+Il est {heure_actuelle}, nous sommes {jour_semaine}.
+Météo : {meteo_now['temperature']}°C, code {meteo_now['weathercode']}.
+Événements aujourd'hui et demain : {json.dumps(resultat['evenements'], ensure_ascii=False)}
+
+Analyse ces données et identifie 3 zones de forte demande VTC pour aujourd'hui/ce soir.
+Pour chaque zone, indique le quartier, la raison et le créneau horaire optimal.
+Réponds uniquement en JSON :
+[{{"zone": "Nom du quartier", "raison": "Explication courte", "creneau": "Ex: 22h-23h30", "intensite": "élevée/moyenne"}}]"""}]
+        )
+        texte4 = message4.content[0].text.strip()
+        texte4 = texte4.replace("```json", "").replace("```", "").strip()
+        resultat["zones_chaudes"] = json.loads(texte4)
+    except Exception as e:
+        print(f"Zones chaudes error: {e}")
+        resultat["zones_chaudes"] = []
 
     return jsonify(resultat)
 
