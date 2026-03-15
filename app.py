@@ -126,11 +126,11 @@ Réponds uniquement en JSON : [{{"nom": "...", "date": "...", "lieu": "..."}}]""
 
       # Prix carburant
     try:
-        ville_upper = ville.upper().strip()
+        ville_capitalisee = ville.strip().title()
         params = urllib.parse.urlencode({
             "limit": "10",
-            "where": f'ville="{ville_upper}"',
-            "order_by": "prix_valeur ASC"
+            "where": f'ville="{ville_capitalisee}"',
+            "order_by": "gazole_prix ASC"
         })
         carb_url = f"https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records?{params}"
         with urllib.request.urlopen(carb_url) as response:
@@ -138,12 +138,12 @@ Réponds uniquement en JSON : [{{"nom": "...", "date": "...", "lieu": "..."}}]""
 
         carburants = {}
         for station in carb_data.get("results", []):
-            nom_carb = station.get("carburant_nom", "")
-            prix = station.get("prix_valeur")
             adresse = station.get("adresse", "")
-            if nom_carb and prix:
-                if nom_carb not in carburants or prix < carburants[nom_carb]["prix"]:
-                    carburants[nom_carb] = {"prix": prix, "adresse": adresse}
+            for carb, champ in [("Gazole", "gazole_prix"), ("SP95", "sp95_prix"), ("SP98", "sp98_prix"), ("E10", "e10_prix"), ("E85", "e85_prix")]:
+                prix = station.get(champ)
+                if prix:
+                    if carb not in carburants or prix < carburants[carb]["prix"]:
+                        carburants[carb] = {"prix": prix, "adresse": adresse}
 
         resultat["carburants"] = [
             {"nom": k, "prix": v["prix"], "adresse": v["adresse"]}
