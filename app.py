@@ -8,6 +8,7 @@ import os
 app = Flask(__name__)
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 TICKETMASTER_KEY = os.environ.get("TICKETMASTER_API_KEY")
+OPENAGENDA_KEY = os.environ.get("OPENAGENDA_API_KEY")
 
 @app.route("/")
 def home():
@@ -17,7 +18,6 @@ def home():
 def ville_depuis_coords():
     lat = request.json["lat"]
     lon = request.json["lon"]
-
     message = client.messages.create(
         model="claude-opus-4-5",
         max_tokens=50,
@@ -38,7 +38,7 @@ def meteo():
     )
     lat, lon = message.content[0].text.strip().split(",")
 
-    # Appel API météo avec prévisions 7 jours
+    # Météo + prévisions 7 jours
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto"
     with urllib.request.urlopen(url) as response:
         data = json.loads(response.read())
@@ -46,7 +46,6 @@ def meteo():
     meteo_now = data["current_weather"]
     daily = data["daily"]
 
-    # Prévisions 7 jours
     previsions = []
     for i in range(7):
         previsions.append({
@@ -56,7 +55,7 @@ def meteo():
             "code": daily["weathercode"][i]
         })
 
-    # Claude choisit l'icône, formule la réponse et donne un conseil chauffeur
+    # Claude formule la réponse
     message2 = client.messages.create(
         model="claude-opus-4-5",
         max_tokens=300,
@@ -72,7 +71,7 @@ Choisis l'icône parmi : ☀️ (beau temps), ⛅ (nuageux), 🌧️ (pluie), �
     resultat = json.loads(texte)
     resultat["previsions"] = previsions
 
-    # Appel API Ticketmaster pour les événements
+    # Ticketmaster
     ville_encodee = urllib.parse.quote(ville)
     tm_url = f"https://app.ticketmaster.com/discovery/v2/events.json?city={ville_encodee}&size=3&apikey={TICKETMASTER_KEY}"
     try:
@@ -84,11 +83,51 @@ Choisis l'icône parmi : ☀️ (beau temps), ⛅ (nuageux), 🌧️ (pluie), �
                 evenements.append({
                     "nom": event["name"],
                     "date": event["dates"]["start"].get("localDate", "Date inconnue"),
-                    "lieu": event["_embedded"]["venues"][0]["name"] if "_embedded" in event else "Lieu inconnu"
+                    "lieu": event["_embedded"]["venues"][0]["name"] if "_embedded" in event else "Lieu inconnu",
+                    "source": "ticketmaster"
                 })
         resultat["evenements"] = evenements
     except:
         resultat["evenements"] = []
+
+    # OpenAgenda
+    try:
+        from datetime import datetime, timezone
+        maintenant = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+        oa_url = f"https://api.openagenda.com/v2/events?key={OPENAGENDA_KEY}&search={ville_encodee}&size=5&timings[gte]={maintenant}&sort=timings.asc"
+        with urllib.request.urlopen(oa_url) as response:
+            oa_data = json.loads(response.read())
+        for event in oa_data.get("events", []):
+            titre = event.get("title", {})
+            nom = titre.get("fr") or titre.get("en") or "Événement"
+            lieu_info = event.get("location", {})
+            lieu = lieu_info.get("name", "Lieu inconnu")
+            timings = event.get("timings", [])
+            date = timings[0].get("begin", "")[:10] if timings else "Date inconnue"
+            resultat["evenements"].append({
+                "nom": nom,
+                "date": date,
+                "lieu": lieu,
+                "source": "openagenda"
+            })
+    except Exception as e:
+        print(f"OpenAgenda error: {e}")
+
+    # Claude trie et sélectionne les 5 meilleurs événements
+    if resultat["evenements"]:
+        try:
+            message3 = client.messages.create(
+                model="claude-opus-4-5",
+                max_tokens=500,
+                messages=[{"role": "user", "content": f"""Voici une liste d'événements à {ville} : {json.dumps(resultat['evenements'], ensure_ascii=False)}
+Sélectionne les 5 plus intéressants et pertinents pour un chauffeur VTC (grands événements, concerts, matchs, festivals).
+Réponds uniquement en JSON avec ce format : [{{"nom": "...", "date": "...", "lieu": "..."}}]"""}]
+            )
+            texte3 = message3.content[0].text.strip()
+            texte3 = texte3.replace("```json", "").replace("```", "").strip()
+            resultat["evenements"] = json.loads(texte3)
+        except:
+            pass
 
     return jsonify(resultat)
 
