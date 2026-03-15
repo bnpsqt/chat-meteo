@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Météo & Événements</title>
+    <title>VTC Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-
         body {
             font-family: 'Inter', sans-serif;
             min-height: 100vh;
@@ -15,172 +14,119 @@
             color: white;
             padding: 24px 16px;
         }
-
         .container { max-width: 680px; margin: 0 auto; }
-
         header { text-align: center; margin-bottom: 36px; }
         header h1 { font-size: clamp(28px, 6vw, 42px); font-weight: 700; letter-spacing: -1px; }
         header h1 span { background: linear-gradient(90deg, #74ebd5, #ACB6E5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         header p { color: rgba(255,255,255,0.5); margin-top: 8px; font-size: 15px; }
 
         .search-box {
-            display: flex;
-            gap: 10px;
+            display: flex; gap: 10px;
             background: rgba(255,255,255,0.07);
             border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 16px;
-            padding: 8px;
+            border-radius: 16px; padding: 8px;
             backdrop-filter: blur(10px);
         }
         .search-box input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: white;
-            font-size: 16px;
-            padding: 8px 12px;
+            flex: 1; background: transparent; border: none; outline: none;
+            color: white; font-size: 16px; padding: 8px 12px;
             font-family: 'Inter', sans-serif;
         }
         .search-box input::placeholder { color: rgba(255,255,255,0.35); }
         .search-box button {
             background: linear-gradient(135deg, #74ebd5, #ACB6E5);
-            border: none;
-            border-radius: 10px;
-            padding: 12px 24px;
-            font-size: 15px;
-            font-weight: 600;
-            color: #1a1a2e;
-            cursor: pointer;
-            transition: opacity 0.2s;
-            white-space: nowrap;
+            border: none; border-radius: 10px; padding: 12px 24px;
+            font-size: 15px; font-weight: 600; color: #1a1a2e;
+            cursor: pointer; transition: opacity 0.2s; white-space: nowrap;
         }
         .search-box button:hover { opacity: 0.85; }
 
         .gps-btn {
-            width: 100%;
-            margin-top: 10px;
+            width: 100%; margin-top: 10px;
             background: rgba(255,255,255,0.07);
             border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 12px;
-            padding: 14px;
-            font-size: 15px;
-            font-weight: 500;
-            color: white;
-            cursor: pointer;
-            transition: background 0.2s;
+            border-radius: 12px; padding: 14px;
+            font-size: 15px; font-weight: 500; color: white;
+            cursor: pointer; transition: background 0.2s;
             font-family: 'Inter', sans-serif;
         }
         .gps-btn:hover { background: rgba(255,255,255,0.12); }
 
-        #loading {
-            display: none;
-            text-align: center;
-            padding: 48px 0;
-        }
+        #loading { display: none; text-align: center; padding: 48px 0; }
         .spinner {
             width: 40px; height: 40px;
             border: 3px solid rgba(255,255,255,0.1);
-            border-top-color: #74ebd5;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 16px;
+            border-top-color: #74ebd5; border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin: 0 auto 16px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
         #carte { display: none; margin-top: 24px; }
-
         .card {
             background: rgba(255,255,255,0.07);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 24px;
-            backdrop-filter: blur(10px);
-            margin-bottom: 16px;
+            border-radius: 20px; padding: 24px;
+            backdrop-filter: blur(10px); margin-bottom: 16px;
         }
 
-        .meteo-main {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 16px;
-        }
+        .meteo-main { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
         .meteo-left .icone { font-size: clamp(64px, 15vw, 88px); line-height: 1; }
         .meteo-left .ville { font-size: clamp(22px, 5vw, 28px); font-weight: 700; margin-top: 8px; }
         .meteo-right { text-align: right; }
         .meteo-right .reponse { color: rgba(255,255,255,0.75); font-size: 15px; max-width: 280px; line-height: 1.5; }
         .activite-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+            display: inline-flex; align-items: center; gap: 8px;
             background: rgba(255,200,60,0.15);
             border: 1px solid rgba(255,200,60,0.3);
-            border-radius: 10px;
-            padding: 10px 14px;
-            font-size: 14px;
-            color: #ffd97d;
-            margin-top: 16px;
-            width: 100%;
+            border-radius: 10px; padding: 10px 14px;
+            font-size: 14px; color: #ffd97d;
+            margin-top: 16px; width: 100%;
         }
 
-        .previsions-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.4); margin-bottom: 14px; }
-        .previsions-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
+        .previsions-title, .events-title, .carburant-title, .hist-title {
+            font-size: 13px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 1px; color: rgba(255,255,255,0.4); margin-bottom: 14px;
         }
-        @media (max-width: 480px) {
-            .previsions-grid { grid-template-columns: repeat(4, 1fr); }
-        }
-        .jour {
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            padding: 10px 4px;
-            text-align: center;
-            transition: background 0.2s;
-        }
+        .previsions-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+        @media (max-width: 480px) { .previsions-grid { grid-template-columns: repeat(4, 1fr); } }
+        .jour { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 10px 4px; text-align: center; transition: background 0.2s; }
         .jour:hover { background: rgba(255,255,255,0.1); }
         .jour .date { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 6px; }
         .jour .icone-jour { font-size: 22px; }
         .jour .temp-max { font-size: 13px; font-weight: 600; color: #ff8c69; margin-top: 4px; }
         .jour .temp-min { font-size: 12px; color: #74ebd5; }
 
-        .events-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.4); margin-bottom: 14px; }
-        .event {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 14px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.07);
-        }
+        .event { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
         .event:last-child { border-bottom: none; padding-bottom: 0; }
         .event-icon {
             width: 42px; height: 42px;
             background: linear-gradient(135deg, #74ebd5, #ACB6E5);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            flex-shrink: 0;
+            border-radius: 12px; display: flex; align-items: center;
+            justify-content: center; font-size: 20px; flex-shrink: 0;
         }
         .event-info { flex: 1; min-width: 0; }
         .event-nom { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .event-detail { font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 3px; }
         .no-events { color: rgba(255,255,255,0.4); font-size: 14px; text-align: center; padding: 16px 0; }
 
+        .carburant-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+        .carburant-item { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 14px; text-align: center; }
+        .carburant-nom { font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 6px; }
+        .carburant-prix { font-size: 22px; font-weight: 700; color: #74ebd5; }
+        .carburant-adresse { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 4px; }
+        .carburant-btn {
+            display: inline-block; margin-top: 8px;
+            background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+            color: #1a1a2e; font-size: 12px; font-weight: 600;
+            padding: 6px 12px; border-radius: 8px; text-decoration: none;
+        }
+        .carburant-btn:hover { opacity: 0.85; }
+
         #historique { display: none; margin-top: 16px; }
-        .hist-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.4); margin-bottom: 14px; }
         .hist-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.07);
-            cursor: pointer;
-            font-size: 14px;
-            transition: color 0.2s;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.07);
+            cursor: pointer; font-size: 14px; transition: color 0.2s;
         }
         .hist-item:last-child { border-bottom: none; }
         .hist-item:hover { color: #74ebd5; }
@@ -231,6 +177,11 @@
                 <div class="events-title">🎭 Événements à venir</div>
                 <div id="evenements"></div>
             </div>
+
+            <div class="card" id="carte-carburant" style="display:none">
+                <div class="carburant-title">⛽ Prix carburant les moins chers</div>
+                <div class="carburant-grid" id="carburants"></div>
+            </div>
         </div>
 
         <div id="historique" class="card">
@@ -265,7 +216,6 @@
             }
             document.getElementById("loading").style.display = "block";
             document.getElementById("carte").style.display = "none";
-
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
                     const lat = position.coords.latitude;
@@ -304,6 +254,7 @@
             document.getElementById("reponse").innerText = data.reponse;
             document.getElementById("activite").innerText = data.activite;
 
+            // Prévisions
             const prevDiv = document.getElementById("previsions");
             prevDiv.innerHTML = "";
             data.previsions.forEach(j => {
@@ -316,6 +267,7 @@
                     </div>`;
             });
 
+            // Événements
             const evDiv = document.getElementById("evenements");
             if (data.evenements && data.evenements.length > 0) {
                 evDiv.innerHTML = data.evenements.map(e => `
@@ -330,6 +282,27 @@
                 evDiv.innerHTML = `<div class="no-events">Aucun événement trouvé</div>`;
             }
 
+            // Carburants
+            const carbDiv = document.getElementById("carburants");
+            const carteCarbDiv = document.getElementById("carte-carburant");
+            if (data.carburants && data.carburants.length > 0) {
+                carteCarbDiv.style.display = "block";
+                carbDiv.innerHTML = data.carburants.map(c => {
+                    const adresseEncodee = encodeURIComponent(c.adresse);
+                    const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${adresseEncodee}&travelmode=driving`;
+                    return `
+                        <div class="carburant-item">
+                            <div class="carburant-nom">${c.nom}</div>
+                            <div class="carburant-prix">${c.prix.toFixed(3)}€</div>
+                            <div class="carburant-adresse">${c.adresse}</div>
+                            <a href="${gmapsUrl}" target="_blank" class="carburant-btn">🗺️ Y aller</a>
+                        </div>`;
+                }).join("");
+            } else {
+                carteCarbDiv.style.display = "none";
+            }
+
+            // Historique
             if (!historique.includes(ville)) {
                 historique.unshift(ville);
                 if (historique.length > 5) historique.pop();

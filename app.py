@@ -76,7 +76,6 @@ Choisis l'icône parmi : ☀️ (beau temps), ⛅ (nuageux), 🌧️ (pluie), �
     ville_lower = ville.lower().strip()
 
     if "paris" in ville_lower:
-        # API Que Faire à Paris
         try:
             aujourd_hui = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             oa_url = f"https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records?where=date_start%3E%3D%22{aujourd_hui}%22&order_by=date_start%20ASC&limit=10"
@@ -107,14 +106,14 @@ Choisis l'icône parmi : ☀️ (beau temps), ⛅ (nuageux), 🌧️ (pluie), �
     except Exception as e:
         print(f"Ticketmaster error: {e}")
 
-    # Claude sélectionne et trie les meilleurs événements
+    # Claude sélectionne les meilleurs événements
     if evenements:
         try:
             message3 = client.messages.create(
                 model="claude-opus-4-5",
                 max_tokens=500,
                 messages=[{"role": "user", "content": f"""Voici une liste d'événements à {ville} : {json.dumps(evenements[:15], ensure_ascii=False)}
-Sélectionne les 5 plus importants et pertinents pour un chauffeur VTC (grands concerts, matchs, festivals, spectacles majeurs).
+Sélectionne les 5 plus importants pour un chauffeur VTC (grands concerts, matchs, festivals, spectacles majeurs).
 Réponds uniquement en JSON : [{{"nom": "...", "date": "...", "lieu": "..."}}]"""}]
             )
             texte3 = message3.content[0].text.strip()
@@ -124,6 +123,30 @@ Réponds uniquement en JSON : [{{"nom": "...", "date": "...", "lieu": "..."}}]""
             resultat["evenements"] = evenements[:5]
     else:
         resultat["evenements"] = []
+
+    # Prix carburant
+    try:
+        ville_encodee = urllib.parse.quote(ville.upper())
+        carb_url = f"https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records?limit=10&where=ville%3D%22{ville_encodee}%22&order_by=prix_valeur%20ASC"
+        with urllib.request.urlopen(carb_url) as response:
+            carb_data = json.loads(response.read())
+
+        carburants = {}
+        for station in carb_data.get("results", []):
+            nom_carb = station.get("carburant_nom", "")
+            prix = station.get("prix_valeur")
+            adresse = station.get("adresse", "")
+            if nom_carb and prix:
+                if nom_carb not in carburants or prix < carburants[nom_carb]["prix"]:
+                    carburants[nom_carb] = {"prix": prix, "adresse": adresse}
+
+        resultat["carburants"] = [
+            {"nom": k, "prix": v["prix"], "adresse": v["adresse"]}
+            for k, v in sorted(carburants.items())
+        ]
+    except Exception as e:
+        print(f"Carburant error: {e}")
+        resultat["carburants"] = []
 
     return jsonify(resultat)
 
