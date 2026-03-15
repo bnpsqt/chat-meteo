@@ -18,13 +18,11 @@
 
         .container { max-width: 680px; margin: 0 auto; }
 
-        /* Header */
         header { text-align: center; margin-bottom: 36px; }
         header h1 { font-size: clamp(28px, 6vw, 42px); font-weight: 700; letter-spacing: -1px; }
         header h1 span { background: linear-gradient(90deg, #74ebd5, #ACB6E5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         header p { color: rgba(255,255,255,0.5); margin-top: 8px; font-size: 15px; }
 
-        /* Search */
         .search-box {
             display: flex;
             gap: 10px;
@@ -59,7 +57,22 @@
         }
         .search-box button:hover { opacity: 0.85; }
 
-        /* Loading */
+        .gps-btn {
+            width: 100%;
+            margin-top: 10px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 500;
+            color: white;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .gps-btn:hover { background: rgba(255,255,255,0.12); }
+
         #loading {
             display: none;
             text-align: center;
@@ -75,7 +88,6 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Carte météo principale */
         #carte { display: none; margin-top: 24px; }
 
         .card {
@@ -112,7 +124,6 @@
             width: 100%;
         }
 
-        /* Prévisions */
         .previsions-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.4); margin-bottom: 14px; }
         .previsions-grid {
             display: grid;
@@ -135,7 +146,6 @@
         .jour .temp-max { font-size: 13px; font-weight: 600; color: #ff8c69; margin-top: 4px; }
         .jour .temp-min { font-size: 12px; color: #74ebd5; }
 
-        /* Événements */
         .events-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.4); margin-bottom: 14px; }
         .event {
             display: flex;
@@ -160,7 +170,6 @@
         .event-detail { font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 3px; }
         .no-events { color: rgba(255,255,255,0.4); font-size: 14px; text-align: center; padding: 16px 0; }
 
-        /* Historique */
         #historique { display: none; margin-top: 16px; }
         .hist-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.4); margin-bottom: 14px; }
         .hist-item {
@@ -181,14 +190,15 @@
 <body>
     <div class="container">
         <header>
-            <h1>🌤️ <span>Météo & Sorties</span></h1>
-            <p>Découvrez la météo et les événements de votre ville</p>
+            <h1>🚗 <span>VTC Dashboard</span></h1>
+            <p>Votre briefing chauffeur en temps réel</p>
         </header>
 
         <div class="search-box">
-            <input type="text" id="ville" placeholder="Paris, Tokyo, New York..." />
+            <input type="text" id="ville" placeholder="Paris, Lyon, Bordeaux..." />
             <button onclick="getMeteo()">Rechercher</button>
         </div>
+        <button class="gps-btn" onclick="getLocation()">📍 Me localiser automatiquement</button>
 
         <div id="loading">
             <div class="spinner"></div>
@@ -196,7 +206,6 @@
         </div>
 
         <div id="carte">
-            <!-- Météo principale -->
             <div class="card">
                 <div class="meteo-main">
                     <div class="meteo-left">
@@ -208,18 +217,16 @@
                     </div>
                 </div>
                 <div class="activite-badge">
-                    <span>👨‍👩‍👧</span>
+                    <span>🚗</span>
                     <span id="activite"></span>
                 </div>
             </div>
 
-            <!-- Prévisions -->
             <div class="card">
                 <div class="previsions-title">📅 Prévisions 7 jours</div>
                 <div class="previsions-grid" id="previsions"></div>
             </div>
 
-            <!-- Événements -->
             <div class="card">
                 <div class="events-title">🎭 Événements à venir</div>
                 <div id="evenements"></div>
@@ -251,6 +258,31 @@
             return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
         }
 
+        function getLocation() {
+            if (!navigator.geolocation) {
+                alert("La géolocalisation n'est pas supportée par ce navigateur.");
+                return;
+            }
+            document.getElementById("loading").style.display = "block";
+            document.getElementById("carte").style.display = "none";
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    const response = await fetch("/ville-depuis-coords", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ lat, lon })
+                    });
+                    const data = await response.json();
+                    document.getElementById("ville").value = data.ville;
+                    getMeteo(data.ville);
+                },
+                () => alert("Impossible de récupérer votre position.")
+            );
+        }
+
         async function getMeteo(villeParam) {
             const ville = villeParam || document.getElementById("ville").value.trim();
             if (!ville) return;
@@ -272,7 +304,6 @@
             document.getElementById("reponse").innerText = data.reponse;
             document.getElementById("activite").innerText = data.activite;
 
-            // Prévisions
             const prevDiv = document.getElementById("previsions");
             prevDiv.innerHTML = "";
             data.previsions.forEach(j => {
@@ -285,7 +316,6 @@
                     </div>`;
             });
 
-            // Événements
             const evDiv = document.getElementById("evenements");
             if (data.evenements && data.evenements.length > 0) {
                 evDiv.innerHTML = data.evenements.map(e => `
@@ -297,10 +327,9 @@
                         </div>
                     </div>`).join("");
             } else {
-                evDiv.innerHTML = `<div class="no-events">Aucun événement trouvé pour cette ville</div>`;
+                evDiv.innerHTML = `<div class="no-events">Aucun événement trouvé</div>`;
             }
 
-            // Historique
             if (!historique.includes(ville)) {
                 historique.unshift(ville);
                 if (historique.length > 5) historique.pop();
