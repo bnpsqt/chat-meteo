@@ -124,10 +124,15 @@ Réponds uniquement en JSON : [{{"nom": "...", "date": "...", "lieu": "..."}}]""
     else:
         resultat["evenements"] = []
 
-    # Prix carburant
+      # Prix carburant
     try:
-        ville_encodee = urllib.parse.quote(ville.upper())
-        carb_url = f"https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records?limit=10&where=ville%3D%22{ville_encodee}%22&order_by=prix_valeur%20ASC"
+        ville_upper = ville.upper().strip()
+        params = urllib.parse.urlencode({
+            "limit": "10",
+            "where": f'ville="{ville_upper}"',
+            "order_by": "prix_valeur ASC"
+        })
+        carb_url = f"https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records?{params}"
         with urllib.request.urlopen(carb_url) as response:
             carb_data = json.loads(response.read())
 
